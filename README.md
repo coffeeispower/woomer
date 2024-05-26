@@ -11,6 +11,7 @@ Zoomer application for wayland (linux) inspired by [tsoding's boomer](https://gi
 - You can drag your mouse
 - Scrolling zooms in and out
 - ESC or right click exits woomer
+- R: Hot reload shaders (only works with `dev` feature)
 
 ## Building
 
