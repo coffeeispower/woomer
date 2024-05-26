@@ -2,6 +2,8 @@
 
 Zoomer application for wayland (linux) inspired by [tsoding's boomer](https://github.com/tsoding/boomer) written in rust
 
+![demo of woomer](./demo.gif)
+
 # Controls
 
 - CTRL: show spotlight
