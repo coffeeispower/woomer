@@ -1,0 +1,13 @@
+[package]
+name = "woomer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+image = "0.24.9"
+libwayshot = { git = "https://github.com/waycrate/wayshot", branch = "freeze-feat-andreas" }
+raylib = { version = "5.0.1", features = ["wayland", "opengl_33"] }
+[features]
+dev = []
