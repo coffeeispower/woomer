@@ -4,7 +4,7 @@ Zoomer application for wayland (linux) inspired by [tsoding's boomer](https://gi
 
 ![demo of woomer](./demo.gif)
 
-# Controls
+## Controls
 
 - CTRL: show spotlight
 - CTRL + SHIFT: Control spotlight radius using your mouse scroll
@@ -12,14 +12,17 @@ Zoomer application for wayland (linux) inspired by [tsoding's boomer](https://gi
 - Scrolling zooms in and out
 - ESC or right click exits woomer
 
-# Building
+## Building
 
 Dependencies:
+
 - wayland-client
 - cmake
 - rust
 - pkg-config
+
 Like with any other rust program you can run:
+
 ```sh
 cargo b
 ```
@@ -30,13 +33,12 @@ However if you want hot reloading of the spotlight shader you can add the `dev` 
 cargo b -F dev
 ```
 
-# Installing using the Nix flake
+## Installing using the Nix flake
 
 You can also install woomer using the nix flake:
 
-**flake.nix**
-
 ```nix
+# flake.nix
 {
   inputs = {
     woomer.url = "github:coffeeispower/woomer";
