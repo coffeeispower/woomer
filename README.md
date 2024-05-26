@@ -6,12 +6,14 @@ Zoomer application for wayland (linux) inspired by [tsoding's boomer](https://gi
 
 ## Controls
 
-- CTRL: show spotlight
-- CTRL + SHIFT: Control spotlight radius using your mouse scroll
-- You can drag your mouse
-- Scrolling zooms in and out
-- ESC or right click exits woomer
-- R: Hot reload shaders (only works with `dev` feature)
+| Control                                           | Description                                                   |
+|---------------------------------------------------|---------------------------------------------------------------|
+| Right Click or <kbd>ESC</kbd>                     | Quit the application.                                         |
+| <kbd>R</kbd>                                      | Reload the shaders (only for Developer mode)                  |
+| Hold <kbd>CTRL</kbd>                              | Enable flashlight effect.                                     |
+| Drag with left mouse button                       | Move the image around.                                        |
+| Scroll wheel                                      | Zoom in/out.                                                  |
+| <kbd>Ctrl</kbd> + <kbd>SHIFT</kbd> + Scroll wheel | Change the radius of the flashlight.                          |
 
 ## Building
 
