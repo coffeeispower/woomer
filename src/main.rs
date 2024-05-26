@@ -146,10 +146,7 @@ fn main() {
             let screen_height = mode2d.get_screen_height().as_f32();
             spotlight_shader.set_shader_value(
                 cursor_position_uniform_location,
-                Vector2::new(
-                    mouse_position.x,
-                    screen_height + screen_height / 1.65 - mouse_position.y,
-                ),
+                Vector2::new(mouse_position.x, screen_height - mouse_position.y),
             );
             spotlight_shader.set_shader_value(
                 spotlight_radius_multiplier_uniform_location,
