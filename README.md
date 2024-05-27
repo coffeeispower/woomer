@@ -65,8 +65,3 @@ After that, you can just install it along with wayland package
   # ....
 }
 ```
-
-If you're using hyprland or other wayland compositors configured using home manager and want to bind woomer to a key,
-you have to set `LD_LIBRARY_PATH` for it to open correctly:
-`LD_LIBRARY_PATH=${pkgs.wayland}/lib ${inputs.woomer.packages.${system}.default}/bin/woomer`  
-I'm pretty sure there's a better way to do this automatically on my side but I haven't figured out yet.
