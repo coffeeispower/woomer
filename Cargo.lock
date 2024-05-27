@@ -720,6 +720,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rxscreen"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afbab13f83503a8272b7150d487494992cf6c59c299dcaf5d8ffac75bad9fc96"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "scoped-tls"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1079,6 +1088,7 @@ dependencies = [
  "image",
  "libwayshot",
  "raylib",
+ "rxscreen",
 ]
 
 [[package]]

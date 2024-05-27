@@ -1,14 +1,36 @@
+#[cfg(all(not(target_os = "linux"), not(target_os = "windows")))]
+compile_error!("Only linux and windows are supported");
+
 use libwayshot::WayshotConnection;
+use image::DynamicImage;
 use raylib::{ffi::Image as FfiImage, prelude::*};
 const SPOTLIGHT_TINT: Color = Color::new(0x00, 0x00, 0x00, 190);
+#[cfg(target_os = "linux")]
+fn screenshot() -> DynamicImage {
+    use image::ImageBuffer;
+
+    fn wayland_screnshot() -> Option<DynamicImage> {
+        let wayshot_connection =
+            WayshotConnection::new().ok()?;
+        Some(wayshot_connection
+            .screenshot_all(false)
+            .expect("failed to take a screenshot on wayland"))
+    }
+    fn x11_screenshot() -> Option<DynamicImage> {
+        rxscreen::Display::new(std::env::var("DISPLAY").ok()?).ok()?.capture().ok().and_then(|i| {
+            let rgb_image_pixels = unsafe {i.as_bytes()}.windows(3).flat_map(|pixels| {
+                let mut pixel = pixels.to_vec();
+                pixel.reverse();
+                pixel
+            }).collect::<Vec<u8>>();
+            Some(DynamicImage::ImageRgb8(ImageBuffer::from_vec(i.width() as u32, i.height() as u32, rgb_image_pixels)?))
+        })
+    }
+    wayland_screnshot().or_else(x11_screenshot).expect("Failed to take screnshot on both wayland and x11")
+}
 
 fn main() {
-    let wayshot_connection =
-        WayshotConnection::new().expect("failed to connect to the wayland display server");
-    let screenshot_image = wayshot_connection
-        .screenshot_all(false)
-        .expect("failed to take a screenshot")
-        .to_rgba8();
+    let screenshot_image = screenshot().to_rgba8();
     let (width, height) = screenshot_image.dimensions();
     let (mut rl, thread) = raylib::init()
         .title(env!("CARGO_BIN_NAME"))

@@ -7,7 +7,11 @@ edition = "2021"
 
 [dependencies]
 image = "0.24.9"
-libwayshot = { git = "https://github.com/waycrate/wayshot", branch = "freeze-feat-andreas" }
 raylib = { version = "5.0.1", features = ["wayland", "opengl_33"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libwayshot = { git = "https://github.com/waycrate/wayshot", branch = "freeze-feat-andreas" }
+rxscreen = "0.1.7"
+
 [features]
 dev = []
