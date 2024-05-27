@@ -78,7 +78,7 @@
         };
 
         devShells.default = craneLib.devShell {
-          inherit (commonArgs) nativeBuildInputs buildInputs LIBCLANG_PATH;
+          inherit (commonArgs) nativeBuildInputs buildInputs LIBCLANG_PATH LD_LIBRARY_PATH;
           # Inherit inputs from checks.
           checks = self.checks.${system};
           packages = with pkgs; [
