@@ -1,14 +1,12 @@
 #[cfg(all(not(target_os = "linux"), not(target_os = "windows")))]
 compile_error!("Only linux and windows are supported");
-
-use libwayshot::WayshotConnection;
 use image::DynamicImage;
+use image::ImageBuffer;
 use raylib::{ffi::Image as FfiImage, prelude::*};
 const SPOTLIGHT_TINT: Color = Color::new(0x00, 0x00, 0x00, 190);
 #[cfg(target_os = "linux")]
 fn screenshot() -> DynamicImage {
-    use image::ImageBuffer;
-
+    use libwayshot::WayshotConnection;
     fn wayland_screnshot() -> Option<DynamicImage> {
         let wayshot_connection =
             WayshotConnection::new().ok()?;
@@ -31,7 +29,7 @@ fn screenshot() -> DynamicImage {
 #[cfg(target_os = "windows")]
 fn screenshot() -> DynamicImage {
     let ss = win_screenshot::capture::capture_display().expect("Failed to take screenshot on windows");
-    DynamicImage::ImageRgb8(ImageBuffer::from_vec(ss.width, ss.height, ss.pixels)?)
+    DynamicImage::ImageRgb8(ImageBuffer::from_vec(ss.width, ss.height, ss.pixels).expect("invalid rgb8 format image"))
 }
 fn main() {
     let screenshot_image = screenshot().to_rgba8();
