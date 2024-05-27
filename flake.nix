@@ -56,6 +56,14 @@
 
         woomer = craneLib.buildPackage (commonArgs // {
           cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+
+          postFixup = ''
+            patchelf $out/bin/woomer \
+              --add-needed libwayland-client.so \
+              --add-needed libwayland-cursor.so \
+              --add-needed libwayland-egl.so \
+              --add-rpath ${pkgs.lib.makeLibraryPath [ pkgs.wayland ]}
+          '';
         });
       in
       {
