@@ -23,6 +23,8 @@ Dependencies:
 - cmake
 - rust
 - pkg-config
+- clang (for compiling raylib)
+- libclang (for bindgen)
 
 Like with any other rust program you can run:
 
