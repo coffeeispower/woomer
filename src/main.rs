@@ -28,7 +28,11 @@ fn screenshot() -> DynamicImage {
     }
     wayland_screnshot().or_else(x11_screenshot).expect("Failed to take screnshot on both wayland and x11")
 }
-
+#[cfg(target_os = "windows")]
+fn screenshot() -> DynamicImage {
+    let ss = win_screenshot::capture::capture_display().expect("Failed to take screenshot on windows");
+    DynamicImage::ImageRgb8(ImageBuffer::from_vec(ss.width, ss.height, ss.pixels)?)
+}
 fn main() {
     let screenshot_image = screenshot().to_rgba8();
     let (width, height) = screenshot_image.dimensions();
