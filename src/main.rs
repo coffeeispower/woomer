@@ -29,7 +29,7 @@ fn screenshot() -> DynamicImage {
 #[cfg(target_os = "windows")]
 fn screenshot() -> DynamicImage {
     let ss = win_screenshot::capture::capture_display().expect("Failed to take screenshot on windows");
-    DynamicImage::ImageRgb8(ImageBuffer::from_vec(ss.width, ss.height, ss.pixels).expect("invalid rgb8 format image"))
+    DynamicImage::ImageRgba8(ImageBuffer::from_vec(ss.width, ss.height, ss.pixels).expect("invalid rgb8 format image"))
 }
 fn main() {
     let screenshot_image = screenshot().to_rgba8();
@@ -160,8 +160,8 @@ fn main() {
 
         let mut d = rl.begin_drawing(&thread);
         let mut mode2d = d.begin_mode2D(rl_camera);
+        mode2d.clear_background(SPOTLIGHT_TINT);
         if enable_spotlight {
-            mode2d.clear_background(SPOTLIGHT_TINT);
             let mouse_position = mode2d.get_mouse_position();
             spotlight_shader.set_shader_value(
                 spotlight_tint_uniform_location,
@@ -180,7 +180,6 @@ fn main() {
             let mut shader_mode = mode2d.begin_shader_mode(&spotlight_shader);
             shader_mode.draw_texture(&screenshot_texture, 0, 0, Color::WHITE);
         } else {
-            mode2d.clear_background(Color::get_color(0));
             mode2d.draw_texture(&screenshot_texture, 0, 0, Color::WHITE);
         }
     }
