@@ -51,14 +51,12 @@ You can also install woomer using the nix flake:
 }
 ```
 
-After that, you can just install it along with wayland package
+After that, you can just install it
 
 ```nix
 {inputs, system, ...}:
 {
   home.packages = [
-    # Required for the wayland-client library which is loaded at runtime
-    wayland
     inputs.woomer.packages.${system}.default
     # ....
   ];
