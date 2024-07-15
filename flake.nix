@@ -64,6 +64,12 @@
               --add-needed libwayland-egl.so \
               --add-rpath ${pkgs.lib.makeLibraryPath [ pkgs.wayland ]}
           '';
+
+          meta = with nixpkgs.lib; {
+            description = "Zoomer application for Wayland inspired by tsoding's boomer";
+            license = licenses.mit;
+            mainProgram = "woomer";
+          };
         });
       in
       {
