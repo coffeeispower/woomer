@@ -15,6 +15,21 @@ Zoomer application for wayland (linux) inspired by [tsoding's boomer](https://gi
 | Scroll wheel                                      | Zoom in/out.                                                  |
 | <kbd>Ctrl</kbd> + <kbd>SHIFT</kbd> + Scroll wheel | Change the radius of the flashlight.                          |
 
+## HiDPI Displays
+### Hyprland
+If you set your scaling different to 1.0 in your .config/hypr/hyprland.conf, you also need the following variables to be set:
+```sh
+$scale = 2
+monitor = , highres, auto, $scale
+
+xwayland {
+  force_zero_scaling = true
+}
+env = GDK_SCALE,$scale
+```
+
+Please also refer to: [Hyprland Wiki](https://wiki.hyprland.org/Configuring/XWayland/)
+
 ## Building
 
 Dependencies:
