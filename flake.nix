@@ -89,6 +89,7 @@
           checks = self.checks.${system};
           packages = with pkgs; [
             rust-analyzer
+            cargo-cross
           ];
 
         };

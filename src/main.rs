@@ -1,14 +1,38 @@
-use libwayshot::WayshotConnection;
+#[cfg(all(not(target_os = "linux"), not(target_os = "windows")))]
+compile_error!("Only linux and windows are supported");
+use image::DynamicImage;
+use image::ImageBuffer;
 use raylib::{ffi::Image as FfiImage, prelude::*};
 const SPOTLIGHT_TINT: Color = Color::new(0x00, 0x00, 0x00, 190);
-
+#[cfg(target_os = "linux")]
+fn screenshot() -> DynamicImage {
+    use libwayshot::WayshotConnection;
+    fn wayland_screnshot() -> Option<DynamicImage> {
+        let wayshot_connection =
+            WayshotConnection::new().ok()?;
+        Some(wayshot_connection
+            .screenshot_all(false)
+            .expect("failed to take a screenshot on wayland"))
+    }
+    fn x11_screenshot() -> Option<DynamicImage> {
+        rxscreen::Display::new(std::env::var("DISPLAY").ok()?).ok()?.capture().ok().and_then(|i| {
+            let rgb_image_pixels = unsafe {i.as_bytes()}.windows(3).flat_map(|pixels| {
+                let mut pixel = pixels.to_vec();
+                pixel.reverse();
+                pixel
+            }).collect::<Vec<u8>>();
+            Some(DynamicImage::ImageRgb8(ImageBuffer::from_vec(i.width() as u32, i.height() as u32, rgb_image_pixels)?))
+        })
+    }
+    wayland_screnshot().or_else(x11_screenshot).expect("Failed to take screnshot on both wayland and x11")
+}
+#[cfg(target_os = "windows")]
+fn screenshot() -> DynamicImage {
+    let ss = win_screenshot::capture::capture_display().expect("Failed to take screenshot on windows");
+    DynamicImage::ImageRgba8(ImageBuffer::from_vec(ss.width, ss.height, ss.pixels).expect("invalid rgb8 format image"))
+}
 fn main() {
-    let wayshot_connection =
-        WayshotConnection::new().expect("failed to connect to the wayland display server");
-    let screenshot_image = wayshot_connection
-        .screenshot_all(false)
-        .expect("failed to take a screenshot")
-        .to_rgba8();
+    let screenshot_image = screenshot().to_rgba8();
     let (width, height) = screenshot_image.dimensions();
     let (mut rl, thread) = raylib::init()
         .title(env!("CARGO_BIN_NAME"))
@@ -136,8 +160,8 @@ fn main() {
 
         let mut d = rl.begin_drawing(&thread);
         let mut mode2d = d.begin_mode2D(rl_camera);
+        mode2d.clear_background(SPOTLIGHT_TINT);
         if enable_spotlight {
-            mode2d.clear_background(SPOTLIGHT_TINT);
             let mouse_position = mode2d.get_mouse_position();
             spotlight_shader.set_shader_value(
                 spotlight_tint_uniform_location,
@@ -156,7 +180,6 @@ fn main() {
             let mut shader_mode = mode2d.begin_shader_mode(&spotlight_shader);
             shader_mode.draw_texture(&screenshot_texture, 0, 0, Color::WHITE);
         } else {
-            mode2d.clear_background(Color::get_color(0));
             mode2d.draw_texture(&screenshot_texture, 0, 0, Color::WHITE);
         }
     }
