@@ -153,7 +153,7 @@ fn main() {
                 spotlight_radius_multiplier,
             );
 
-            let mut shader_mode = mode2d.begin_shader_mode(&spotlight_shader);
+            let mut shader_mode = mode2d.begin_shader_mode(&mut spotlight_shader);
             shader_mode.draw_texture(&screenshot_texture, 0, 0, Color::WHITE);
         } else {
             mode2d.clear_background(Color::get_color(0));
