@@ -88,16 +88,19 @@ fn main() {
             spotlight_radius_multiplier_uniform_location =
                 spotlight_shader.get_shader_location("spotlightRadiusMultiplier");
         }
-        let enable_spotlight = rl.is_key_down(KeyboardKey::KEY_LEFT_CONTROL);
+        let enable_spotlight =
+            rl.is_key_down(KeyboardKey::KEY_LEFT_CONTROL) || rl.is_key_down(KeyboardKey::KEY_RIGHT_CONTROL);
         let scrolled_amount = rl.get_mouse_wheel_move_v().y;
-        if rl.is_key_pressed(KeyboardKey::KEY_LEFT_CONTROL) {
+        if rl.is_key_pressed(KeyboardKey::KEY_LEFT_CONTROL)
+            || rl.is_key_pressed(KeyboardKey::KEY_RIGHT_CONTROL)
+        {
             spotlight_radius_multiplier = 5.0;
             spotlight_radius_multiplier_delta = -15.0;
         }
         if scrolled_amount != 0.0 {
             match (
                 enable_spotlight,
-                rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT),
+                rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT) || rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT),
             ) {
                 (_, false) => {
                     delta_scale += scrolled_amount as f64;
