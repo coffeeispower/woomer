@@ -42,6 +42,7 @@
           buildInputs = (with pkgs; [
             wayland
             glfw
+            libgbm
           ]) ++ (
             with pkgs.xorg; [
             libX11.dev
