@@ -1,10 +1,48 @@
+use std::{env, process};
+
 use libwayshot::WayshotConnection;
-use raylib::{ffi::Image as FfiImage, prelude::*};
+use raylib::{
+    ffi::{Image as FfiImage, SetWindowMonitor, ToggleFullscreen},
+    prelude::*,
+};
 const SPOTLIGHT_TINT: Color = Color::new(0x00, 0x00, 0x00, 190);
 
 fn main() {
-    let wayshot_connection =
-        WayshotConnection::new().expect("failed to connect to the wayland display server");
+    let mut args = env::args();
+    let bin = args.next().unwrap();
+
+    let mut monitor_name: Option<String> = None;
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--monitor" => {
+                monitor_name = args.next().or_else(|| {
+                    eprintln!("--monitor needs a value");
+                    process::exit(1);
+                })
+            }
+            _other => print_help_and_exit(&bin),
+        }
+    }
+
+    let wayshot_connection = WayshotConnection::new().expect("Failed to connect to wayshot");
+    let outputs = wayshot_connection.get_all_outputs();
+
+    if outputs.is_empty() {
+        eprintln!("No Wayland outputs found.");
+        process::exit(1);
+    }
+
+    let selected_output = match monitor_name {
+        None => &outputs[0],
+        Some(ref name) => outputs
+            .iter()
+            .find(|out| &out.name == name)
+            .unwrap_or_else(|| {
+                eprintln!("Output '{}' not found.", name);
+                process::exit(1);
+            }),
+    };
+
     let screenshot_image = wayshot_connection
         .screenshot_all(false)
         .expect("failed to take a screenshot")
@@ -12,17 +50,40 @@ fn main() {
     let (width, height) = screenshot_image.dimensions();
     let (mut rl, thread) = raylib::init()
         .title(env!("CARGO_BIN_NAME"))
-        .fullscreen()
-        .size(0, 0)
+        .size(
+            selected_output
+                .logical_region
+                .inner
+                .size
+                .width
+                .try_into()
+                .unwrap(),
+            selected_output
+                .logical_region
+                .inner
+                .size
+                .height
+                .try_into()
+                .unwrap(),
+        )
         .transparent()
+        .undecorated()
         .vsync()
         .build();
 
-    // let monitor_id = unsafe { raylib::ffi::GetCurrentMonitor() };
-    // let monitor_position = unsafe { raylib::ffi::GetMonitorPosition(monitor_id) };
-    // dbg!(monitor_position);
-    // let monitor_width = unsafe { raylib::ffi::GetMonitorWidth(monitor_id) };
-    // let monitor_height = unsafe { raylib::ffi::GetMonitorHeight(monitor_id) };
+    let idx = outputs
+        .iter()
+        .position(|o| o.name == selected_output.name)
+        .expect("Monitor not found");
+
+    unsafe {
+        ToggleFullscreen();
+    }
+
+    unsafe {
+        SetWindowMonitor(idx as i32);
+    }
+
     let screenshot_image = unsafe {
         Image::from_raw(FfiImage {
             // We can leak memory here because raylib will free the memory for us
@@ -49,7 +110,11 @@ fn main() {
         rl.load_shader_from_memory(&thread, None, Some(include_str!("../shaders/spotlight.fs")));
     let mut rl_camera = Camera2D::default();
     rl_camera.zoom = 1.0;
-    // TODO: Get the current monitor position in virtual space and put the camera there
+    rl_camera.target = Vector2::new(
+        selected_output.logical_region.inner.position.x as f32,
+        selected_output.logical_region.inner.position.y as f32,
+    );
+
     let mut delta_scale = 0f64;
     let mut scale_pivot = rl.get_mouse_position();
     let mut velocity = Vector2::default();
@@ -163,4 +228,19 @@ fn main() {
             mode2d.draw_texture(&screenshot_texture, 0, 0, Color::WHITE);
         }
     }
+}
+
+fn print_help_and_exit(bin: &str) -> ! {
+    eprintln!(
+        "\
+{bin}  – Wayland screen-zoom tool
+
+USAGE:
+    {bin} [--monitor <name>]
+
+OPTIONS:
+    --monitor <name>   Target monitor (Wayland output name); defaults to primary if flag is not provided.",
+        bin = bin
+    );
+    process::exit(0);
 }
