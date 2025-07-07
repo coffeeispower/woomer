@@ -1039,7 +1039,7 @@ checksum = "271414315aff87387382ec3d271b52d7ae78726f5d44ac98b4f4030c91880486"
 
 [[package]]
 name = "woomer"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "image",
  "libwayshot",
