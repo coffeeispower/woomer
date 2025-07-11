@@ -138,7 +138,12 @@ fn main() {
     cursor_position_uniform_location = spotlight_shader.get_shader_location("cursorPosition");
     spotlight_radius_multiplier_uniform_location =
         spotlight_shader.get_shader_location("spotlightRadiusMultiplier");
-    while !rl.window_should_close() {
+    let mut should_exit = false;
+    while !rl.window_should_close() && !should_exit {
+        // We check for A and Q due to differences between AZERTY and QWERTY keyboard layouts
+        if rl.is_key_pressed(KeyboardKey::KEY_Q) || rl.is_key_pressed(KeyboardKey::KEY_A) {
+            should_exit = true;
+        }
         if rl.is_mouse_button_down(MouseButton::MOUSE_BUTTON_RIGHT) {
             break;
         }
