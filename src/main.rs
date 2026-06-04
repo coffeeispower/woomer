@@ -7,11 +7,18 @@ use raylib::{
 };
 const SPOTLIGHT_TINT: Color = Color::new(0x00, 0x00, 0x00, 190);
 
+const ZOOM_MIN: f64 = 0.1;
+const ZOOM_MAX: f64 = 10.0;
+const ZOOM_SPEED: f64 = 0.5;
+
 fn main() {
     let mut args = env::args();
     let bin = args.next().unwrap();
 
     let mut monitor_name: Option<String> = None;
+    let mut zoom_min= ZOOM_MIN;
+    let mut zoom_max = ZOOM_MAX;
+    let mut zoom_speed = ZOOM_SPEED;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--monitor" => {
@@ -19,7 +26,29 @@ fn main() {
                     eprintln!("--monitor needs a value");
                     process::exit(1);
                 })
+            },
+            "--zoom-min" => {
+                let zoom_min_str = args.next().or_else(|| {
+                    eprintln!("--zoom-min needs a value");
+                    process::exit(1);
+                });
+                zoom_min = (zoom_min_str.unwrap()).parse().unwrap();
+            },
+            "--zoom-max" => {
+                let zoom_max_str = args.next().or_else(|| {
+                    eprintln!("--zoom-max needs a value");
+                    process::exit(1);
+                });
+                zoom_max = (zoom_max_str.unwrap()).parse().unwrap();
+            },
+            "--zoom-speed" => {
+                let zoom_speed_str = args.next().or_else(|| {
+                    eprintln!("--zoom-speed needs a value");
+                    process::exit(1);
+                });
+                zoom_speed = (zoom_speed_str.unwrap()).parse().unwrap();
             }
+
             _other => print_help_and_exit(&bin),
         }
     }
@@ -184,11 +213,14 @@ fn main() {
         }
         if delta_scale.abs() > 0.5 {
             let p0 = scale_pivot / rl_camera.zoom;
-            rl_camera.zoom = (rl_camera.zoom as f64 + delta_scale * rl.get_frame_time() as f64)
-                .clamp(1.0, 10.) as f32;
+
+            let mut log_zoom = (rl_camera.zoom as f64).ln();
+            log_zoom += (delta_scale * zoom_speed) * rl.get_frame_time() as f64;
+            rl_camera.zoom = log_zoom.exp().clamp(zoom_min, zoom_max) as f32;
+
             let p1 = scale_pivot / rl_camera.zoom;
             rl_camera.target += p0 - p1;
-            delta_scale -= delta_scale * rl.get_frame_time() as f64 * 4.0
+            delta_scale -= delta_scale * rl.get_frame_time() as f64 * 4.0;
         }
         spotlight_radius_multiplier = (spotlight_radius_multiplier as f64
             + spotlight_radius_multiplier_delta * rl.get_frame_time() as f64)
@@ -241,10 +273,14 @@ fn print_help_and_exit(bin: &str) -> ! {
 {bin}  – Wayland screen-zoom tool
 
 USAGE:
-    {bin} [--monitor <name>]
+    {bin} [--monitor <name>] [--zoom-min <scale>] [--zoom-max <scale>] [--zoom-speed <scale>]
 
 OPTIONS:
-    --monitor <name>   Target monitor (Wayland output name); defaults to primary if flag is not provided.",
+    --monitor <name>        Target monitor (Wayland output name); defaults to primary if flag is not provided.
+    --zoom-min <scale>      Minimum zoom floating point number (default: {ZOOM_MIN})
+    --zoom-max <scale>      Maximum zoom floating point number (default: {ZOOM_MAX})
+    --zoom-speed <speed>    Zooming speed floating point number (default: {ZOOM_SPEED}
+",
         bin = bin
     );
     process::exit(0);
