@@ -1,4 +1,3 @@
-
 {
   description = "Zoomer application for wayland inspired by tsoding's boomer";
 
@@ -13,8 +12,16 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, crane, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      crane,
+      flake-utils,
+      ...
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
@@ -23,55 +30,59 @@
         # Common arguments can be set here to avoid repeating them later
         # Note: changes here will rebuild all dependency crates
         commonArgs = rec {
-          src = let
+          src =
+            let
               shaderFilter = path: _type: builtins.match ".*fs$" path != null;
-              shaderOrCargo = path: type:
-                (shaderFilter path type) || (craneLib.filterCargoSources path type);
+              shaderOrCargo = path: type: (shaderFilter path type) || (craneLib.filterCargoSources path type);
             in
             pkgs.lib.cleanSourceWith {
               src = craneLib.path ./.;
               filter = shaderOrCargo;
             };
           strictDeps = true;
-          nativeBuildInputs = (with pkgs; [
-            cmake
-            pkg-config
-            clang
-            wayland
-          ]);
-          buildInputs = (with pkgs; [
+          nativeBuildInputs = (
+            with pkgs;
+            [
+              cmake
+              pkg-config
+              clang
+              wayland
+            ]
+          );
+          buildInputs = with pkgs; [
             wayland
             glfw
             libgbm
-          ]) ++ (
-            with pkgs.xorg; [
             libX11.dev
             libXrandr.dev
             libXinerama.dev
             libXcursor.dev
             libXi.dev
-          ]);
+          ];
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
           LIBCLANG_PATH = pkgs.libclang.lib + "/lib/";
         };
 
-        woomer = craneLib.buildPackage (commonArgs // {
-          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+        woomer = craneLib.buildPackage (
+          commonArgs
+          // {
+            cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
-          postFixup = ''
-            patchelf $out/bin/woomer \
-              --add-needed libwayland-client.so \
-              --add-needed libwayland-cursor.so \
-              --add-needed libwayland-egl.so \
-              --add-rpath ${pkgs.lib.makeLibraryPath [ pkgs.wayland ]}
-          '';
+            postFixup = ''
+              patchelf $out/bin/woomer \
+                --add-needed libwayland-client.so \
+                --add-needed libwayland-cursor.so \
+                --add-needed libwayland-egl.so \
+                --add-rpath ${pkgs.lib.makeLibraryPath [ pkgs.wayland ]}
+            '';
 
-          meta = with nixpkgs.lib; {
-            description = "Zoomer application for Wayland inspired by tsoding's boomer";
-            license = licenses.mit;
-            mainProgram = "woomer";
-          };
-        });
+            meta = with nixpkgs.lib; {
+              description = "Zoomer application for Wayland inspired by tsoding's boomer";
+              license = licenses.mit;
+              mainProgram = "woomer";
+            };
+          }
+        );
       in
       {
         checks = {
@@ -85,7 +96,12 @@
         };
 
         devShells.default = craneLib.devShell {
-          inherit (commonArgs) nativeBuildInputs buildInputs LIBCLANG_PATH LD_LIBRARY_PATH;
+          inherit (commonArgs)
+            nativeBuildInputs
+            buildInputs
+            LIBCLANG_PATH
+            LD_LIBRARY_PATH
+            ;
           # Inherit inputs from checks.
           checks = self.checks.${system};
           packages = with pkgs; [
@@ -93,5 +109,6 @@
           ];
 
         };
-      });
+      }
+    );
 }

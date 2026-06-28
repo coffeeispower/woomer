@@ -11,7 +11,12 @@ fn main() {
     let mut args = env::args();
     let bin = args.next().unwrap();
 
+    // Define options
     let mut monitor_name: Option<String> = None;
+    let mut output: Option<String> = None;
+    let mut radius_multiplier: f32 = 1.0;
+    let mut show_cursor = false;
+
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--monitor" => {
@@ -19,6 +24,26 @@ fn main() {
                     eprintln!("--monitor needs a value");
                     process::exit(1);
                 })
+            }
+            "--output" => {
+                output = args.next().or_else(|| {
+                    eprintln!("--output needs a value");
+                    process::exit(1);
+                })
+            }
+            "--radius" => {
+                let radius_str = args.next().unwrap_or_else(|| {
+                    eprintln!("--radius needs a value");
+                    process::exit(1);
+                });
+
+                radius_multiplier = radius_str.parse::<f32>().unwrap_or_else(|_| {
+                    eprintln!("--radius must be a valid number (e.g., 5 or 3.5)");
+                    process::exit(1);
+                });
+            }
+            "--show-cursor" | "-S" => {
+                show_cursor = true;
             }
             _other => print_help_and_exit(&bin),
         }
@@ -32,21 +57,40 @@ fn main() {
         process::exit(1);
     }
 
-    let selected_output = match monitor_name {
+    let display_output = match monitor_name {
         None => &outputs[0],
         Some(ref name) => outputs
             .iter()
             .find(|out| &out.name == name)
             .unwrap_or_else(|| {
-                eprintln!("Output '{}' not found.", name);
+                eprintln!("Monitor '{}' not found.", name);
                 process::exit(1);
             }),
     };
 
-    let screenshot_image = wayshot_connection
-        .screenshot_all(false)
-        .expect("failed to take a screenshot")
-        .to_rgba8();
+    let selected_output =
+        match output {
+            None => None,
+            Some(ref name) => Some(outputs.iter().find(|out| &out.name == name).unwrap_or_else(
+                || {
+                    eprintln!("Output '{}' not found.", name);
+                    process::exit(1);
+                },
+            )),
+        };
+
+    let screenshot_image = if let Some(output) = selected_output {
+        wayshot_connection
+            .screenshot_single_output(output, show_cursor)
+            .expect("failed to take a screenshot")
+            .to_rgba8()
+    } else {
+        wayshot_connection
+            .screenshot_all(show_cursor)
+            .expect("failed to take a screenshot")
+            .to_rgba8()
+    };
+
     let (width, height) = screenshot_image.dimensions();
     let screenshot_image = unsafe {
         Image::from_raw(FfiImage {
@@ -64,14 +108,14 @@ fn main() {
     let (mut rl, thread) = raylib::init()
         .title(env!("CARGO_BIN_NAME"))
         .size(
-            selected_output
+            display_output
                 .logical_region
                 .inner
                 .size
                 .width
                 .try_into()
                 .unwrap(),
-            selected_output
+            display_output
                 .logical_region
                 .inner
                 .size
@@ -86,7 +130,7 @@ fn main() {
 
     let idx = outputs
         .iter()
-        .position(|o| o.name == selected_output.name)
+        .position(|o| o.name == display_output.name)
         .expect("Monitor not found");
 
     unsafe {
@@ -111,8 +155,8 @@ fn main() {
     let mut rl_camera = Camera2D::default();
     rl_camera.zoom = 1.0;
     rl_camera.target = Vector2::new(
-        selected_output.logical_region.inner.position.x as f32,
-        selected_output.logical_region.inner.position.y as f32,
+        display_output.logical_region.inner.position.x as f32,
+        display_output.logical_region.inner.position.y as f32,
     );
 
     let mut delta_scale = 0f64;
@@ -121,7 +165,6 @@ fn main() {
     let mut spotlight_radius_multiplier = 1.0;
     let mut spotlight_radius_multiplier_delta = 0.0;
     let mut mirror = false;
-    let mut enable_spotlight = false;
     #[cfg(feature = "dev")]
     let mut spotlight_tint_uniform_location;
     #[cfg(feature = "dev")]
@@ -140,6 +183,7 @@ fn main() {
     spotlight_radius_multiplier_uniform_location =
         spotlight_shader.get_shader_location("spotlightRadiusMultiplier");
     let mut should_exit = false;
+    let mut enable_spotlight = false;
     while !rl.window_should_close() && !should_exit {
         // We check for A and Q due to differences between AZERTY and QWERTY keyboard layouts
         if rl.is_key_pressed(KeyboardKey::KEY_Q) || rl.is_key_pressed(KeyboardKey::KEY_A) {
@@ -159,26 +203,28 @@ fn main() {
             spotlight_radius_multiplier_uniform_location =
                 spotlight_shader.get_shader_location("spotlightRadiusMultiplier");
         }
+        if rl.is_key_pressed(KeyboardKey::KEY_LEFT_CONTROL)
+            || rl.is_key_pressed(KeyboardKey::KEY_RIGHT_CONTROL)
+        {
+            spotlight_radius_multiplier = radius_multiplier * 3.0;
+            spotlight_radius_multiplier_delta = -15.0;
+        }
         if rl.is_key_pressed(KeyboardKey::KEY_F) {
             enable_spotlight = !enable_spotlight;
         }
         let scrolled_amount = rl.get_mouse_wheel_move_v().y;
-        // if rl.is_key_pressed(KeyboardKey::KEY_LEFT_CONTROL)
-        //     || rl.is_key_pressed(KeyboardKey::KEY_RIGHT_CONTROL)
-        // {
-        //     spotlight_radius_multiplier = 5.0;
-        //     spotlight_radius_multiplier_delta = -15.0;
-        // }
         if scrolled_amount != 0.0 {
             match (
                 enable_spotlight,
-                rl.is_key_down(KeyboardKey::KEY_LEFT_CONTROL) || rl.is_key_down(KeyboardKey::KEY_RIGHT_CONTROL),
+                rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
+                    || rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT),
             ) {
                 (_, false) => {
                     delta_scale += scrolled_amount as f64;
                 }
                 (true, true) => {
-                    spotlight_radius_multiplier_delta += (scrolled_amount*spotlight_radius_multiplier/2.0) as f64;
+                    spotlight_radius_multiplier_delta +=
+                        (scrolled_amount * spotlight_radius_multiplier / 2.0) as f64;
                 }
                 _ => {}
             }
@@ -186,7 +232,8 @@ fn main() {
         }
         if delta_scale.abs() > 0.5 {
             let p0 = scale_pivot / rl_camera.zoom;
-            rl_camera.zoom = (rl_camera.zoom as f64 + delta_scale * rl.get_frame_time() as f64).clamp(0.01, 100000.) as f32;
+            rl_camera.zoom = (rl_camera.zoom as f64 + delta_scale * rl.get_frame_time() as f64)
+                .clamp(0.01, 100000.) as f32;
             let p1 = scale_pivot / rl_camera.zoom;
             rl_camera.target += p0 - p1;
             delta_scale -= delta_scale * rl.get_frame_time() as f64 * 4.0
@@ -210,8 +257,8 @@ fn main() {
         if rl.is_key_pressed(KeyboardKey::KEY_ZERO) {
             rl_camera.zoom = 1.0;
             rl_camera.target = Vector2::new(
-                selected_output.logical_region.inner.position.x as f32,
-                selected_output.logical_region.inner.position.y as f32,
+                selected_output.map_or(0.0, |o| o.logical_region.inner.position.x as f32),
+                selected_output.map_or(0.0, |o| o.logical_region.inner.position.y as f32),
             );
             mirror = false;
         }
@@ -236,7 +283,7 @@ fn main() {
             );
             spotlight_shader.set_shader_value(
                 spotlight_radius_multiplier_uniform_location,
-                spotlight_radius_multiplier*rl_camera.zoom,
+                spotlight_radius_multiplier * rl_camera.zoom,
             );
 
             let mut shader_mode = mode2d.begin_shader_mode(&mut spotlight_shader);
@@ -245,9 +292,15 @@ fn main() {
             mode2d.clear_background(Color::get_color(0));
             let scr_w = mode2d.get_screen_width().as_f32();
             let scr_h = mode2d.get_screen_height().as_f32();
-            mode2d.draw_texture_pro(&screenshot_texture, Rectangle::new(0.0, 0.0, if mirror {-scr_w} else {scr_w}, scr_h), Rectangle::new(0.0, 0.0, scr_w, scr_h), Vector2::new(0.0, 0.0), 0.0, Color::WHITE);
+            mode2d.draw_texture_pro(
+                &screenshot_texture,
+                Rectangle::new(0.0, 0.0, if mirror { -scr_w } else { scr_w }, scr_h),
+                Rectangle::new(0.0, 0.0, scr_w, scr_h),
+                Vector2::new(0.0, 0.0),
+                0.0,
+                Color::WHITE,
+            );
         }
-
     }
 }
 
@@ -257,10 +310,13 @@ fn print_help_and_exit(bin: &str) -> ! {
 {bin}  – Wayland screen-zoom tool
 
 USAGE:
-    {bin} [--monitor <name>]
+    {bin} [OPTIONS]
 
 OPTIONS:
-    --monitor <name>   Target monitor (Wayland output name); defaults to primary if flag is not provided.",
+    --monitor <name>     Monitor that the window will be shown on. Defaults to primary if not specified
+    --output <name>      Monitor that should be captured. Captures all monitors if not specified
+    --radius <integer>   Size of the vignette radius. Bigger number means bigger radius. Defaults to 1
+    -S --show-cursor     Whether to show cursor. Defaults to false, specify to enable",
         bin = bin
     );
     process::exit(0);
