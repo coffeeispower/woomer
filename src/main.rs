@@ -48,6 +48,19 @@ fn main() {
         .expect("failed to take a screenshot")
         .to_rgba8();
     let (width, height) = screenshot_image.dimensions();
+    let screenshot_image = unsafe {
+        Image::from_raw(FfiImage {
+            // We can leak memory here because raylib will free the memory for us
+            data: Box::new(screenshot_image.into_vec())
+                .leak()
+                .as_mut_ptr()
+                .cast(),
+            format: PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 as i32,
+            mipmaps: 1,
+            width: width as i32,
+            height: height as i32,
+        })
+    };
     let (mut rl, thread) = raylib::init()
         .title(env!("CARGO_BIN_NAME"))
         .size(
@@ -84,19 +97,6 @@ fn main() {
         SetWindowMonitor(idx as i32);
     }
 
-    let screenshot_image = unsafe {
-        Image::from_raw(FfiImage {
-            // We can leak memory here because raylib will free the memory for us
-            data: Box::new(screenshot_image.into_vec())
-                .leak()
-                .as_mut_ptr()
-                .cast(),
-            format: PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 as i32,
-            mipmaps: 1,
-            width: width as i32,
-            height: height as i32,
-        })
-    };
     let screenshot_texture = rl
         .load_texture_from_image(&thread, &screenshot_image)
         .expect("failed to load screenshot into a texture");
@@ -120,7 +120,8 @@ fn main() {
     let mut velocity = Vector2::default();
     let mut spotlight_radius_multiplier = 1.0;
     let mut spotlight_radius_multiplier_delta = 0.0;
-
+    let mut mirror = false;
+    let mut enable_spotlight = false;
     #[cfg(feature = "dev")]
     let mut spotlight_tint_uniform_location;
     #[cfg(feature = "dev")]
@@ -158,25 +159,26 @@ fn main() {
             spotlight_radius_multiplier_uniform_location =
                 spotlight_shader.get_shader_location("spotlightRadiusMultiplier");
         }
-        let enable_spotlight =
-            rl.is_key_down(KeyboardKey::KEY_LEFT_CONTROL) || rl.is_key_down(KeyboardKey::KEY_RIGHT_CONTROL);
-        let scrolled_amount = rl.get_mouse_wheel_move_v().y;
-        if rl.is_key_pressed(KeyboardKey::KEY_LEFT_CONTROL)
-            || rl.is_key_pressed(KeyboardKey::KEY_RIGHT_CONTROL)
-        {
-            spotlight_radius_multiplier = 5.0;
-            spotlight_radius_multiplier_delta = -15.0;
+        if rl.is_key_pressed(KeyboardKey::KEY_F) {
+            enable_spotlight = !enable_spotlight;
         }
+        let scrolled_amount = rl.get_mouse_wheel_move_v().y;
+        // if rl.is_key_pressed(KeyboardKey::KEY_LEFT_CONTROL)
+        //     || rl.is_key_pressed(KeyboardKey::KEY_RIGHT_CONTROL)
+        // {
+        //     spotlight_radius_multiplier = 5.0;
+        //     spotlight_radius_multiplier_delta = -15.0;
+        // }
         if scrolled_amount != 0.0 {
             match (
                 enable_spotlight,
-                rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT) || rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT),
+                rl.is_key_down(KeyboardKey::KEY_LEFT_CONTROL) || rl.is_key_down(KeyboardKey::KEY_RIGHT_CONTROL),
             ) {
                 (_, false) => {
                     delta_scale += scrolled_amount as f64;
                 }
                 (true, true) => {
-                    spotlight_radius_multiplier_delta -= scrolled_amount as f64;
+                    spotlight_radius_multiplier_delta += (scrolled_amount*spotlight_radius_multiplier/2.0) as f64;
                 }
                 _ => {}
             }
@@ -184,8 +186,7 @@ fn main() {
         }
         if delta_scale.abs() > 0.5 {
             let p0 = scale_pivot / rl_camera.zoom;
-            rl_camera.zoom = (rl_camera.zoom as f64 + delta_scale * rl.get_frame_time() as f64)
-                .clamp(1.0, 10.) as f32;
+            rl_camera.zoom = (rl_camera.zoom as f64 + delta_scale * rl.get_frame_time() as f64).clamp(0.01, 100000.) as f32;
             let p1 = scale_pivot / rl_camera.zoom;
             rl_camera.target += p0 - p1;
             delta_scale -= delta_scale * rl.get_frame_time() as f64 * 4.0
@@ -194,7 +195,7 @@ fn main() {
             + spotlight_radius_multiplier_delta * rl.get_frame_time() as f64)
             .clamp(0.3, 10.) as f32;
         spotlight_radius_multiplier_delta -=
-            spotlight_radius_multiplier_delta * rl.get_frame_time() as f64 * 4.0;
+            spotlight_radius_multiplier_delta * rl.get_frame_time() as f64 * 8.0;
         const VELOCITY_THRESHOLD: f32 = 15.0;
         if rl.is_mouse_button_down(MouseButton::MOUSE_BUTTON_LEFT) {
             let delta = rl
@@ -204,7 +205,19 @@ fn main() {
             velocity = delta * rl.get_fps().as_f32();
         } else if velocity.length_sqr() > VELOCITY_THRESHOLD * VELOCITY_THRESHOLD {
             rl_camera.target += velocity * rl.get_frame_time();
-            velocity -= velocity * rl.get_frame_time() * 6.0;
+            velocity -= velocity * rl.get_frame_time() * 6.0 * rl_camera.zoom.clamp(0.6, 10.);
+        }
+        if rl.is_key_pressed(KeyboardKey::KEY_ZERO) {
+            rl_camera.zoom = 1.0;
+            rl_camera.target = Vector2::new(
+                selected_output.logical_region.inner.position.x as f32,
+                selected_output.logical_region.inner.position.y as f32,
+            );
+            mirror = false;
+        }
+
+        if rl.is_key_pressed(KeyboardKey::KEY_M) {
+            mirror = !mirror;
         }
 
         let mut d = rl.begin_drawing(&thread);
@@ -223,15 +236,18 @@ fn main() {
             );
             spotlight_shader.set_shader_value(
                 spotlight_radius_multiplier_uniform_location,
-                spotlight_radius_multiplier,
+                spotlight_radius_multiplier*rl_camera.zoom,
             );
 
             let mut shader_mode = mode2d.begin_shader_mode(&mut spotlight_shader);
             shader_mode.draw_texture(&screenshot_texture, 0, 0, Color::WHITE);
         } else {
             mode2d.clear_background(Color::get_color(0));
-            mode2d.draw_texture(&screenshot_texture, 0, 0, Color::WHITE);
+            let scr_w = mode2d.get_screen_width().as_f32();
+            let scr_h = mode2d.get_screen_height().as_f32();
+            mode2d.draw_texture_pro(&screenshot_texture, Rectangle::new(0.0, 0.0, if mirror {-scr_w} else {scr_w}, scr_h), Rectangle::new(0.0, 0.0, scr_w, scr_h), Vector2::new(0.0, 0.0), 0.0, Color::WHITE);
         }
+
     }
 }
 
