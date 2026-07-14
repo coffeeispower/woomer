@@ -25,18 +25,16 @@
         # Note: changes here will rebuild all dependency crates
         commonArgs =
           let
-            buildInputs = (with pkgs; [
+            buildInputs = with pkgs; [
               wayland
               glfw
               libgbm
-            ]) ++ (
-              with pkgs.xorg; [
               libX11.dev
               libXrandr.dev
               libXinerama.dev
               libXcursor.dev
               libXi.dev
-            ]);
+            ];
 
             craneLib = crane.mkLib pkgs;
           in {
